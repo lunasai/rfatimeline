@@ -1,0 +1,42 @@
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+
+@import "tailwindcss";
+
+@theme {
+	--color-accent: #0009FF;
+	--color-grid-bg: rgba(0,0,255,0.06);
+	--color-grid-focus: rgba(0,0,0,0.10);
+	--color-ink: #1D1D1D;
+	--color-panel: rgba(255,255,255,0.92);
+	
+	--font-family-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer utilities {
+	.text-ink {
+		color: var(--color-ink);
+	}
+	.border-grid-focus {
+		border-color: var(--color-grid-focus);
+	}
+	.border-grid-bg {
+		border-color: var(--color-grid-bg);
+	}
+	.text-grid-focus {
+		color: var(--color-grid-focus);
+	}
+}
+
+@layer base {
+	html, body, #root {
+		height: 100%;
+	}
+	body {
+		@apply antialiased bg-white;
+		color: var(--color-ink);
+	}
+}
+
+
