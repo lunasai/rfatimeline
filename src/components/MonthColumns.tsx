@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState, useRef } from 'react';
 import { config } from '../config';
 import { useTimelineLayout } from '../context/TimelineLayoutContext';
 import MonthLabel from './MonthLabel';
 import PeriodBubble from './PeriodBubble';
 import Milestone from './Milestone';
+import { UserMilestone } from './UserMilestone';
+import { UserMilestonesLegend } from './UserMilestonesLegend';
+import { useUserMilestones } from '../hooks/useUserMilestones';
 import { monthRange, diffInMonths, monthIdLabelShort } from '../lib/months';
 import type { MonthId } from '../lib/months';
 
@@ -11,6 +14,18 @@ export function MonthColumns() {
 	const { layout, focusedIndex, setFocusedIndex } = useTimelineLayout();
 	const liveRegionId = useId();
 	const [_, setInputsVersion] = useState(0);
+	const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
+	const timelineClickAreaRef = useRef<HTMLDivElement>(null);
+	
+	// User milestones management
+	const {
+		milestones: userMilestones,
+		addMilestone,
+		updateMilestoneLabel,
+		updateMilestoneEndMonth,
+		deleteMilestone,
+		syncMilestonesWithMonths,
+	} = useUserMilestones();
 	
 	// Visible window and scheme from localStorage
 	const STORAGE_KEY = 'rfa-timeline-inputs';
@@ -71,6 +86,46 @@ export function MonthColumns() {
 			return cur;
 		});
 	}, [minEndContractIndex, maxEndContractIndex, months.length]);
+
+	// Sync user milestones when months change
+	useEffect(() => {
+		syncMilestonesWithMonths(months);
+	}, [months, syncMilestonesWithMonths]);
+
+	// Handle clicks on the timeline band to add milestones
+	const handleTimelineClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+		// Only handle clicks on the timeline band itself, not on existing milestones or official markers
+		const target = e.target as HTMLElement;
+		if (target.closest('[data-user-milestone]') || target.closest('[data-official-milestone]')) {
+			return;
+		}
+
+		// Check if click is within the timeline band area (the white/soft block)
+		const rect = e.currentTarget.getBoundingClientRect();
+		const clickX = e.clientX - rect.left;
+		const clickY = e.clientY - rect.top;
+
+		// Only handle clicks in the timeline bubble area (bubble top: 48px, height: 90px)
+		const bubbleTop = 48;
+		const bubbleHeight = 90;
+		// Allow clicks within the bubble area with some tolerance
+		if (clickY < bubbleTop - 10 || clickY > bubbleTop + bubbleHeight + 10) {
+			return;
+		}
+
+		// Calculate which month column was clicked
+		const colWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--col-w')) || layout.monthWidth;
+		if (colWidth <= 0) return;
+
+		const clickedIndex = Math.round(clickX / colWidth);
+		if (clickedIndex >= 0 && clickedIndex < months.length) {
+			const monthId = months[clickedIndex];
+			// Check if there's already a milestone at this month - if so, allow multiple
+			const newId = addMilestone(clickedIndex, monthId);
+			setEditingMilestoneId(newId);
+		}
+		e.stopPropagation();
+	}, [months, layout.monthWidth, addMilestone]);
 
 	const compactLabels = layout.monthWidth < (config.ui.labelMin ?? 44);
 
@@ -141,6 +196,7 @@ export function MonthColumns() {
 							inset: 0,
 							zIndex: 15,
 						}}
+						data-official-milestone
 					>
 						<Milestone label="RFA Announcement" month="Nov" variant="soft" monthIndex={0} />
 						{outplacementStartIndex >= 0 && <Milestone label="Role Lapse" month="Jul" variant="medium" monthIndex={outplacementStartIndex} />}
@@ -155,6 +211,53 @@ export function MonthColumns() {
 							maxMonthIndex={maxEndContractIndex}
 						/>
 					</div>
+
+					{/* User milestones layer */}
+					<div
+						className="pointer-events-none"
+						style={{
+							position: 'absolute',
+							inset: 0,
+							zIndex: 20,
+						}}
+						data-user-milestone
+					>
+						{userMilestones.map((milestone) => (
+							<UserMilestone
+								key={milestone.id}
+								milestone={milestone}
+								isEditing={editingMilestoneId === milestone.id}
+								minMonthIndex={0}
+								maxMonthIndex={months.length - 1}
+								months={months}
+								onLabelChange={updateMilestoneLabel}
+								onEditStart={setEditingMilestoneId}
+								onEditEnd={() => setEditingMilestoneId(null)}
+								onDelete={deleteMilestone}
+								onEndMonthChange={updateMilestoneEndMonth}
+							/>
+						))}
+					</div>
+
+					{/* Clickable timeline band for adding milestones */}
+					<div
+						ref={timelineClickAreaRef}
+						onClick={handleTimelineClick}
+						onMouseEnter={(e) => {
+							e.currentTarget.style.cursor = 'pointer';
+						}}
+						style={{
+							position: 'absolute',
+							left: 0,
+							right: 0,
+							top: '38px', // Start a bit above bubble (bubble starts at 48px)
+							height: '110px', // Cover the bubble area (90px) plus some tolerance
+							zIndex: 10,
+							cursor: 'pointer',
+							pointerEvents: 'auto',
+						}}
+						aria-label="Click to add a personal milestone"
+					/>
 
 					{/* Month columns - interactive and labeled */}
 					{months.map((id, idx) => {
@@ -187,6 +290,12 @@ export function MonthColumns() {
 					})}
 				</div>
 			</div>
+
+			{/* User milestones legend */}
+			<UserMilestonesLegend
+				milestones={userMilestones}
+				onDelete={deleteMilestone}
+			/>
 		</div>
 	);
 }
