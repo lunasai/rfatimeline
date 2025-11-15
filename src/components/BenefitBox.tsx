@@ -169,7 +169,7 @@ export default function BenefitBox({ labels, endMonthIndex, style }: BenefitBoxP
 				backgroundColor: 'rgba(255,255,255,0.96)',
 				color: config.ui.colors.ink,
 				fontFamily: 'DM Sans, sans-serif',
-				fontSize: 14,
+				fontSize: 12,
 				lineHeight: 1.3,
 				textAlign: 'left',
 				pointerEvents: 'none',
@@ -196,40 +196,34 @@ export default function BenefitBox({ labels, endMonthIndex, style }: BenefitBoxP
 				<div
 					style={{
 						color: config.ui.colors.accent,
-						fontSize: 14,
+						fontSize: 12,
 						fontWeight: 400,
 						textWrap: 'pretty',
 						whiteSpace: 'normal',
 						lineHeight: 1.5,
 					}}
 				>
-					This date may not give an accurate severance result.
-					<br />
-					<br />
-					Your payout depends on whether you decline outplacement — please check with HR.
+					The compensation for leaving on your role-lapse day isn't clearly defined. Please check with HR.
 				</div>
 			) : showSpecialMessage === 'before' ? (
 				<div
 					style={{
 						color: config.ui.colors.accent,
-						fontSize: 14,
+						fontSize: 12,
 						fontWeight: 400,
 						textWrap: 'pretty',
 						whiteSpace: 'normal',
 						lineHeight: 1.5,
 					}}
 				>
-					Severance can't be calculated for this date.
-					<br />
-					<br />
-					Leaving before outplacement changes your eligibility — please check with HR.
+					Leaving early affects your eligibility for a redundancy package, please check with HR.
 				</div>
 			) : (
 				<>
 			<div
 				style={{
 					color: config.ui.colors.accent,
-					fontSize: 14,
+					fontSize: 12,
 					fontWeight: 500,
 					textWrap: 'pretty',
 					whiteSpace: 'normal',
@@ -245,7 +239,7 @@ export default function BenefitBox({ labels, endMonthIndex, style }: BenefitBoxP
 			<div
 				style={{
 					marginTop: 8,
-					fontSize: 14,
+					fontSize: 12,
 					fontWeight: 400,
 					color: 'rgba(0,0,0,0.55)',
 				}}

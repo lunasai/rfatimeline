@@ -9,7 +9,7 @@ export function MonthLabel({ label, compact }: MonthLabelProps) {
 		<div
 			className={[
 				'px-2 text-center font-light',
-				compact ? 'text-[10px]' : 'text-sm',
+				compact ? 'text-[10px]' : 'text-xs',
 				'whitespace-nowrap overflow-hidden text-ellipsis',
 				'text-ink/60',
 			].join(' ')}

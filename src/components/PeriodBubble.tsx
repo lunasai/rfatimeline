@@ -59,7 +59,7 @@ export function PeriodBubble({
 					className="absolute inset-0 flex items-center justify-center"
 					style={{
 						fontFamily: config.ui.font,
-						fontSize: '16px',
+						fontSize: '12px',
 						fontWeight: 400,
 						color: '#0009ff',
 						userSelect: 'none',

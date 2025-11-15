@@ -217,7 +217,7 @@ export function Milestone({
 					padding: '3px 8px',
 					backgroundColor: styles.labelBg,
 					borderRadius: '9px',
-					fontSize: '14px',
+					fontSize: '12px',
 					fontWeight: 400,
 					fontFamily: 'IBM Plex Mono, ui-monospace, SFMono-Regular, monospace',
 					color: styles.labelText,
@@ -268,24 +268,6 @@ export function Milestone({
 					aria-label={`Drag handle for ${label}. Currently at ${getMonthLabel(clampedIndex)}`}
 					role="button"
 					tabIndex={-1}
-				/>
-			)}
-
-			{/* Vertical line connecting label to benefits */}
-			{draggable && variant === 'accent' && activeBenefits.length > 0 && (
-				<div
-					style={{
-						position: 'absolute',
-						left: '50%',
-						top: `${labelTopPx + labelHeightPx + lineGapPx}px`,
-						transform: 'translateX(-50%)',
-						width: '1px',
-						height: `${lineToBenefitGapPx}px`, // Extends to just before first benefit (gap only)
-						backgroundColor: '#0000FF',
-						opacity: 0.3,
-						pointerEvents: 'none',
-					}}
-					aria-hidden="true"
 				/>
 			)}
 

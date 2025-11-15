@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, type PropsWithChildren } from 'react';
 import { config } from '../config';
 import { useTimelineLayout } from '../context/TimelineLayoutContext';
 import InputPanel from './InputPanel';
+import { ReadMeButton } from './ReadMeButton';
 
 export function TimelineShell({ children }: PropsWithChildren) {
 	const { containerRef, isOverflowing, layout } = useTimelineLayout();
@@ -77,6 +78,9 @@ export function TimelineShell({ children }: PropsWithChildren) {
 		<div className="relative min-h-screen w-full font-mono text-ink overflow-hidden">
 			{/* Input Panel - fixed top-left */}
 			<InputPanel />
+
+			{/* Read Me button - fixed bottom-right */}
+			<ReadMeButton />
 
 			{/* Endless grid layer - spans entire viewport */}
 			<div

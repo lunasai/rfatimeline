@@ -12,7 +12,7 @@ export function UserMilestonesLegend({ milestones, onDelete }: UserMilestonesLeg
 				style={{
 					position: 'fixed',
 					bottom: '24px',
-					right: '24px',
+					left: '24px',
 					padding: '12px 16px',
 					backgroundColor: 'rgba(255, 255, 255, 0.9)',
 					borderRadius: '8px',
@@ -43,7 +43,7 @@ export function UserMilestonesLegend({ milestones, onDelete }: UserMilestonesLeg
 			style={{
 				position: 'fixed',
 				bottom: '24px',
-				right: '24px',
+				left: '24px',
 				padding: '12px 16px',
 				backgroundColor: 'rgba(255, 255, 255, 0.9)',
 				borderRadius: '8px',
