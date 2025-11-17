@@ -10,30 +10,14 @@ type BenefitBoxProps = {
 
 const STORAGE_KEY = 'rfa-timeline-inputs';
 
-export default function BenefitBox({ labels, endMonthIndex, style }: BenefitBoxProps) {
-	const [first, second] = labels;
-	
-	// Format text as "Severance + 0,5 x monthly salary (unused outplacement)"
-	const formattedText = useMemo(() => {
-		if (!first || !second) return first ?? '';
-		
-		// Extract multiplier from second label (e.g., "+0.5 × monthly salary (unused outplacement)")
-		const multiplierMatch = second.match(/\+([\d.]+)\s*×/);
-		if (multiplierMatch) {
-			const multiplier = multiplierMatch[1].replace('.', ','); // Replace dot with comma
-			return `Severance + ${multiplier} x monthly salary (unused outplacement)`;
-		}
-		
-		// Fallback to original format if pattern doesn't match
-		return `${first} + ${second}`;
-	}, [first, second]);
+export default function BenefitBox({ labels: _labels, endMonthIndex, style }: BenefitBoxProps) {
 	
 	// Calculate exit package estimate and details
 	const calculationDetails = useMemo(() => {
 		// 0) Inputs
 		const stored = localStorage.getItem(STORAGE_KEY);
 		if (!stored) return null;
-		let monthlySalary = 0;
+		let monthlySalary = 0; // yearly salary with holiday allowance included (stored as monthlySalary for backward compatibility)
 		let startOfEmployment = '';
 		let birthday = '';
 		let roleLapseMonth = '';
@@ -117,22 +101,11 @@ export default function BenefitBox({ labels, endMonthIndex, style }: BenefitBoxP
 				showSpecialMessage = 'equal';
 			}
 		}
-		// Final safeguard: ensure message visibility based on slider index if comparison didn't set it
-		if (!showSpecialMessage) {
-			if (endMonthIndex < 8) {
-				showSpecialMessage = 'before';
-			} else if (endMonthIndex === 8) {
-				showSpecialMessage = 'equal';
-			}
-		}
 
 		// If we have a special message, return early with just the message (no calculation needed)
 		if (showSpecialMessage) {
 			return { details: null, monthlySalary, showSpecialMessage };
 		}
-
-		// Early leave before Jul 2026 - no calculation
-		if (endMonthIndex < 8) return null;
 
 		const startDate = parseStart(startOfEmployment);
 		if (!startDate || exitDate <= startDate) return null;
@@ -153,6 +126,43 @@ export default function BenefitBox({ labels, endMonthIndex, style }: BenefitBoxP
 
 	const exitPackageEstimate = calculationDetails?.details?.totalPayout ?? null;
 	const showSpecialMessage = calculationDetails?.showSpecialMessage ?? null;
+
+	// Format text dynamically based on calculation results (reusing July logic for January)
+	const formattedText = useMemo(() => {
+		// If there's a special message, we'll show that instead
+		if (showSpecialMessage) {
+			return null; // Will be handled by the special message rendering
+		}
+
+		// If no calculation details (e.g., empty state with no salary), use labels as fallback
+		if (!calculationDetails?.details) {
+			const [first, second] = _labels;
+			if (!first || !second) return first ?? 'Early leave scheme';
+			
+			// Extract multiplier from second label (e.g., "+0.5 × monthly salary (unused outplacement)")
+			const multiplierMatch = second.match(/\+([\d.]+)\s*×/);
+			if (multiplierMatch) {
+				const multiplier = multiplierMatch[1].replace('.', ','); // Replace dot with comma
+				return `Severance + ${multiplier} x monthly salary (unused outplacement)`;
+			}
+			
+			// Fallback to original format if pattern doesn't match
+			return `${first} + ${second}`;
+		}
+
+		// Use calculation results to generate text dynamically (works for both July and January)
+		const details = calculationDetails.details;
+		const remainingMonths = details.remainingFullOutplacementMonths;
+
+		// If no remaining months, just show severance
+		if (remainingMonths <= 0) {
+			return 'Severance (per SBR formula)';
+		}
+
+		// Calculate multiplier: 0.5 × remaining months
+		const multiplier = (0.5 * remainingMonths).toFixed(1).replace('.', ',');
+		return `Severance + ${multiplier} x monthly salary (unused outplacement)`;
+	}, [calculationDetails, showSpecialMessage, _labels]);
 
 	return (
 		<div
@@ -218,22 +228,22 @@ export default function BenefitBox({ labels, endMonthIndex, style }: BenefitBoxP
 				>
 					Leaving early affects your eligibility for a redundancy package, please check with HR.
 				</div>
-			) : (
+			) : formattedText ? (
 				<>
-			<div
-				style={{
-					color: config.ui.colors.accent,
-					fontSize: 12,
-					fontWeight: 500,
-					textWrap: 'pretty',
-					whiteSpace: 'normal',
-					overflowWrap: 'anywhere',
-					wordBreak: 'break-word',
-				}}
-				title={formattedText}
-			>
-				{formattedText}
-			</div>
+					<div
+						style={{
+							color: config.ui.colors.accent,
+							fontSize: 12,
+							fontWeight: 500,
+							textWrap: 'pretty',
+							whiteSpace: 'normal',
+							overflowWrap: 'anywhere',
+							wordBreak: 'break-word',
+						}}
+						title={formattedText}
+					>
+						{formattedText}
+					</div>
 
 			{/* Exit package estimate (always visible, gray text) */}
 			<div
@@ -244,11 +254,11 @@ export default function BenefitBox({ labels, endMonthIndex, style }: BenefitBoxP
 					color: 'rgba(0,0,0,0.55)',
 				}}
 			>
-				Exit package estimate:{' '}
-				{exitPackageEstimate !== null ? `€ ${exitPackageEstimate.toLocaleString()}` : '—'}
-			</div>
+					Exit package estimate:{' '}
+					{exitPackageEstimate !== null ? `€ ${exitPackageEstimate.toLocaleString()}` : '—'}
+				</div>
 				</>
-			)}
+			) : null}
 		</div>
 	);
 }
