@@ -1,7 +1,7 @@
 export type CalcInputs = {
 	startOfEmployment: string; // "MM / YYYY"
 	birthday: string; // "DD / MM / YYYY"
-	monthlySalary: number; // parsed number
+	monthlySalary: number; // yearly salary with holiday allowance included (stored as monthlySalary for backward compatibility)
 	endMonthIndex: number; // 0 = Nov 2025
 };
 
@@ -94,12 +94,15 @@ export function computeBenefitDetailsByDates(params: {
 	employmentStartDate: Date;
 	birthDate: Date | null;
 	exitDate: Date;
-	monthlySalary: number;
+	monthlySalary: number; // yearly salary with 8% holiday allowance included (converted to monthly internally)
 	// Optional: override outplacement start; defaults to Jul 1 of exit year
 	outplacementStartDate?: Date;
 }): BenefitDetails {
-	const { employmentStartDate, birthDate, exitDate, monthlySalary } = params;
+	const { employmentStartDate, birthDate, exitDate, monthlySalary: yearlySalary } = params;
 	const outplacementStartDate = params.outplacementStartDate ?? julyFirstOfYear(exitDate.getFullYear());
+	
+	// Convert yearly salary to monthly salary (yearly includes holiday allowance)
+	const monthlySalary = yearlySalary / 12;
 
 	// 1) Raw service months and rounding applied AFTER summing segments
 	const segments: { weight: number; months: number }[] = [];
@@ -146,13 +149,41 @@ export function computeBenefitDetailsByDates(params: {
 	}, 0);
 
 	// 4) Base severance (B is monthlySalary as-is; C = 1)
-	const baseSeverance = Math.round(weightedYearsA * monthlySalary);
+	// monthlySalary already includes 8% holiday allowance, so B = monthlySalary (correct)
+	let baseSeverance = Math.round(weightedYearsA * monthlySalary);
+	
+	// Apply €300,000 cap on severance (excluding additional compensation)
+	const SEVERANCE_CAP = 300000;
+	if (baseSeverance > SEVERANCE_CAP) {
+		baseSeverance = SEVERANCE_CAP;
+	}
 
 	// 5) Outplacement entitlement and remaining months (evaluate at role lapse start)
 	const outplacementEntitlementMonths = computeOutplacementEntitlementMonthsByDates(employmentStartDate, birthDate, outplacementStartDate);
 	const monthsElapsedFromOutplacementStart = monthsBetween(outplacementStartDate, exitDate);
-	const remainingFullOutplacementMonths = Math.max(0, outplacementEntitlementMonths - monthsElapsedFromOutplacementStart);
-	const additionalComp = Math.round(0.5 * monthlySalary * remainingFullOutplacementMonths);
+	
+	// Calculate remaining months: if exit is at or after end of outplacement period, all months are used
+	const outplacementEndDate = new Date(outplacementStartDate);
+	outplacementEndDate.setMonth(outplacementEndDate.getMonth() + outplacementEntitlementMonths);
+	
+	// Check if exit is in the last month of outplacement or after
+	// If exit month/year matches the last month of outplacement, all months are used
+	const lastOutplacementMonth = new Date(outplacementStartDate);
+	lastOutplacementMonth.setMonth(lastOutplacementMonth.getMonth() + outplacementEntitlementMonths - 1);
+	const isExitInLastMonth = exitDate.getFullYear() === lastOutplacementMonth.getFullYear() && 
+	                           exitDate.getMonth() === lastOutplacementMonth.getMonth();
+	
+	let remainingFullOutplacementMonths: number;
+	if (exitDate >= outplacementEndDate || isExitInLastMonth) {
+		remainingFullOutplacementMonths = 0;
+	} else {
+		remainingFullOutplacementMonths = Math.max(0, outplacementEntitlementMonths - monthsElapsedFromOutplacementStart);
+	}
+	
+	// SBR rule: AdditionalComp = 0.5 × baseSalary × remainingMonths
+	// Input includes holiday, so: baseSalary = monthlySalary / 1.08
+	const baseSalary = monthlySalary / 1.08;
+	const additionalComp = Math.round(0.5 * baseSalary * remainingFullOutplacementMonths);
 
 	// 6) Total payout
 	const totalPayout = baseSeverance + additionalComp;
@@ -174,7 +205,7 @@ export function computeBenefitDetailsByDates(params: {
 export function computeBenefitEstimate({
 	startOfEmployment,
 	birthday,
-	monthlySalary,
+	monthlySalary, // This is actually yearly salary (stored as monthlySalary for backward compatibility)
 	endMonthIndex,
 }: CalcInputs): number | null {
 	if (!monthlySalary || monthlySalary <= 0) return null;
@@ -190,7 +221,7 @@ export function computeBenefitEstimate({
 		employmentStartDate: startDate,
 		birthDate,
 		exitDate,
-		monthlySalary,
+		monthlySalary, // Pass yearly salary, will be converted to monthly inside
 		outplacementStartDate,
 	});
 	return details.totalPayout;

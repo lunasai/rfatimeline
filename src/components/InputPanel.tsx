@@ -225,10 +225,10 @@ export default function InputPanel() {
 						/>
 					</div>
 
-					{/* Monthly salary */}
+					{/* Yearly salary */}
 					<div className="inline-flex items-center gap-4 px-4 py-2 rounded bg-[#1b1b1b] text-mono whitespace-nowrap w-fit self-start row">
 						<label className="inline-block select-none" style={{ ...baseInputStyle, color: 'rgba(255, 255, 255, 0.7)' }}>
-							monthly salary (€):
+							yearly salary (€):
 						</label>
 						<input
 							type="text"

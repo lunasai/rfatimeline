@@ -7,14 +7,14 @@ This document explains how the exit package estimate is calculated in the timeli
 - `employmentStartDate` (Date): contract start date
 - `birthDate` (Date): date of birth (optional; if unknown, all service is treated in the <35 band)
 - `exitDate` (Date): termination date selected by the slider
-- `monthlySalary` (number): monthly salary already including holiday allowance (do NOT add 8%)
+- `monthlySalary` (number): yearly salary with 8% holiday allowance included (stored as `monthlySalary` for backward compatibility; converted to monthly internally)
 
 ### Overview
 
 Total payout is the sum of base severance and additional compensation for unused outplacement months when the employee exits before the outplacement period ends.
 
-- Base severance = A × monthlySalary
-- Additional compensation = 0.5 × monthlySalary × remainingFullOutplacementMonths
+- Base severance = A × monthlySalary (monthlySalary already includes holiday allowance)
+- Additional compensation = 0.5 × baseSalary × remainingFullOutplacementMonths (where baseSalary = monthlySalary / 1.08)
 - Total payout = base severance + additional compensation
 
 ### A. Weighted Service Years (A)
@@ -48,8 +48,10 @@ We split the service period into contiguous segments at the age thresholds above
 
 5) Base severance
 
+- Yearly salary (with holiday) is converted to monthly: `monthlySalary = yearlySalary / 12`
 - `baseSeverance = round(A × monthlySalary)`
-- Note: `monthlySalary` already includes holiday allowance. No extra 8% is applied.
+- Note: `monthlySalary` already includes 8% holiday allowance, so it's used directly for severance calculation (B = monthlySalary per SBR formula).
+- Severance is capped at €300,000 (excluding additional compensation).
 
 ### B. Outplacement (opted-in only in this UI)
 
@@ -65,8 +67,11 @@ We split the service period into contiguous segments at the age thresholds above
 3) Unused months and additional compensation
 
 - `monthsElapsedFromOutplacementStart = monthsBetween(outplacementStartDate, exitDate)`
-- `remainingFullOutplacementMonths = max(0, entitlementMonths - monthsElapsedFromOutplacementStart)`
-- `additionalComp = 0.5 × monthlySalary × remainingFullOutplacementMonths`
+- Calculate `outplacementEndDate = outplacementStartDate + entitlementMonths`
+- If `exitDate >= outplacementEndDate` or exit is in the last month of outplacement, then `remainingFullOutplacementMonths = 0` (all months used)
+- Otherwise: `remainingFullOutplacementMonths = max(0, entitlementMonths - monthsElapsedFromOutplacementStart)`
+- Extract base monthly salary: `baseMonthlySalary = (yearlySalary / 1.08) / 12` (extract base from yearly which includes holiday, then convert to monthly)
+- `additionalComp = 0.5 × baseMonthlySalary × remainingFullOutplacementMonths`
 
 If the employee uses the full outplacement period or exits after it ends, `additionalComp = 0`.
 
@@ -98,7 +103,8 @@ Case 1 — Exit in August (2025-08-01)
 - All service under 35 → A = 3 × 0.5 = 1.5
 - Base severance = 1.5 × 5,000 = 7,500
 - Remaining full outplacement months after August = 3 (Sep–Oct plus unused in Aug as modeled)
-- Additional compensation = 0.5 × 5,000 × 3 = 7,500
+- Base salary = 5,000 / 1.08 = 4,629.63
+- Additional compensation = 0.5 × 4,629.63 × 3 = 6,944.45 ≈ 6,944
 - Total payout = 7,500 + 7,500 = € 15,000
 
 Case 2 — Exit in July (2025-07-01)
@@ -106,8 +112,9 @@ Case 2 — Exit in July (2025-07-01)
 - Service ≈ 3 years + 1 month → rounds down to 3 years
 - A = 1.5; Base severance = 7,500
 - Remaining full outplacement months after July = 4
-- Additional compensation = 0.5 × 5,000 × 4 = 10,000
-- Total payout = 17,500
+- Base salary = 5,000 / 1.08 = 4,629.63
+- Additional compensation = 0.5 × 4,629.63 × 4 = 9,259.26 ≈ 9,259
+- Total payout = 7,500 + 9,259 = 16,759
 
 ### Notes
 
