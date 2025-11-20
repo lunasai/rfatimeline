@@ -113,7 +113,6 @@ describe('Comprehensive timeline scenarios', () => {
 	// Helper to calculate expected values
 	const monthlySalaryWithHoliday = 5000;
 	const yearlySalaryWithHoliday = monthlySalaryWithHoliday * 12; // 60000
-	const baseMonthlySalary = monthlySalaryWithHoliday / 1.08; // ~4629.63
 
 	describe('Under 35, short service (1-3 years)', () => {
 		it('1y 8m service, exit at start of outplacement (Jul) → full additional comp', () => {
@@ -416,7 +415,6 @@ describe('Comprehensive timeline scenarios', () => {
 
 		it('Exit in Jan 2026 → new outplacement period', () => {
 			const exitDate = new Date(2026, 0, 1); // Jan 2026
-			const outplacementStart = new Date(2026, 6, 1); // Jul 2026 (future)
 			// But if exit is before outplacement, use Jul 2025
 			const actualOutplacementStart = new Date(2025, 6, 1); // Jul 2025
 			
