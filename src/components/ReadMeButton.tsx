@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ReadMeModal } from './ReadMeModal';
+import { ReadMeContent } from './ReadMeContent';
 
 export function ReadMeButton() {
 	const [isOpen, setIsOpen] = useState(false);
@@ -40,7 +41,9 @@ export function ReadMeButton() {
 				* read me
 			</button>
 
-			<ReadMeModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
+			<ReadMeModal isOpen={isOpen} onClose={() => setIsOpen(false)}>
+				<ReadMeContent />
+			</ReadMeModal>
 		</>
 	);
 }

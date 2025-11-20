@@ -27,8 +27,8 @@ describe('months helpers', () => {
 	});
 
 	it('Age/service at month compute correctly', () => {
-		// Birthday: 06 / 11 / 1992 → at Nov 2025 age 33
-		expect(ageAtMonth('06 / 11 / 1992', '2025-11')).toBe(33);
+		// Birthday: 06 / 11 / 1992 → at Nov 2025 (Nov 1) age is 32 (turns 33 on Nov 6)
+		expect(ageAtMonth('06 / 11 / 1992', '2025-11')).toBe(32);
 		// Start: 06 / 2020 → at Nov 2025, 5 years
 		expect(yearsOfServiceAtMonth('06 / 2020', '2025-11')).toBe(5);
 	});

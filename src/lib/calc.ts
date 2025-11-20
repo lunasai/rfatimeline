@@ -18,6 +18,7 @@ export type BenefitDetails = {
 	rawServiceRemainderMonths: number;
 	weightedYearsA: number;
 	baseSeverance: number;
+	isSeveranceCapped: boolean;
 	outplacementEntitlementMonths: number;
 	outplacementStartDate: Date;
 	remainingFullOutplacementMonths: number;
@@ -154,7 +155,8 @@ export function computeBenefitDetailsByDates(params: {
 	
 	// Apply €300,000 cap on severance (excluding additional compensation)
 	const SEVERANCE_CAP = 300000;
-	if (baseSeverance > SEVERANCE_CAP) {
+	const isSeveranceCapped = baseSeverance > SEVERANCE_CAP;
+	if (isSeveranceCapped) {
 		baseSeverance = SEVERANCE_CAP;
 	}
 
@@ -194,6 +196,7 @@ export function computeBenefitDetailsByDates(params: {
 		rawServiceRemainderMonths,
 		weightedYearsA,
 		baseSeverance,
+		isSeveranceCapped,
 		outplacementEntitlementMonths,
 		outplacementStartDate,
 		remainingFullOutplacementMonths,

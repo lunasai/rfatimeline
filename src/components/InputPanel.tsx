@@ -17,14 +17,40 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const SHOW_ADVANCED = false;
 
 function formatNumberWithThousands(value: string): string {
-	// Remove all non-digit characters except decimal point
-	const cleaned = value.replace(/[^\d.]/g, '');
-	// Split by decimal point
-	const parts = cleaned.split('.');
-	// Format integer part with thousands separator
-	const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-	// Rejoin with decimal part if exists
-	return parts.length > 1 ? `${integerPart}.${parts[1]}` : integerPart;
+	// Universal format: period (.) for thousands, comma (,) for decimal
+	// Example: 20000.50 -> "20.000,50"
+	
+	// Remove all formatting (periods and other non-digits) except comma (for decimal)
+	// This ensures we always work with clean digits
+	const cleaned = value.replace(/[^\d,]/g, '');
+	
+	// Split by comma to separate integer and decimal parts
+	const parts = cleaned.split(',');
+	let integerPart = parts[0] || '';
+	const decimalPart = parts[1] || '';
+	
+	// Format integer part: add period every 3 digits from right to left
+	// Work from right to left, inserting periods every 3 digits
+	if (integerPart.length > 3) {
+		let formatted = '';
+		// Process from right to left
+		for (let i = integerPart.length - 1; i >= 0; i--) {
+			const digit = integerPart[i];
+			const positionFromRight = integerPart.length - 1 - i;
+			// Insert period before every group of 3 digits (except at the start)
+			if (positionFromRight > 0 && positionFromRight % 3 === 0) {
+				formatted = '.' + formatted;
+			}
+			formatted = digit + formatted;
+		}
+		integerPart = formatted;
+	}
+	
+	// Combine with decimal part if exists
+	if (decimalPart) {
+		return `${integerPart},${decimalPart}`;
+	}
+	return integerPart;
 }
 
 // Auto-size utility function

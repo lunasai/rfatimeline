@@ -1,6 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { config } from '../config';
 import { computeBenefitDetailsByDates } from '../lib/calc';
+import { formatCurrency } from '../lib/currency';
+import { buildExplanationText } from '../lib/explanation';
+import { ReadMeModal } from './ReadMeModal';
+import { CalculationExplanationContent } from './CalculationExplanationContent';
 
 type BenefitBoxProps = {
 	labels: string[];
@@ -24,7 +28,11 @@ export default function BenefitBox({ labels: _labels, endMonthIndex, style }: Be
 		let roleLapseYear = '';
 		try {
 			const state = JSON.parse(stored);
-			const salaryStr = String(state.monthlySalary ?? '').replace(/,/g, '');
+			// Parse universal format: period for thousands, comma for decimal
+			// Convert to standard format for parsing: remove periods, replace comma with period
+			const salaryStr = String(state.monthlySalary ?? '')
+				.replace(/\./g, '') // Remove thousands separators (periods)
+				.replace(',', '.'); // Replace decimal separator (comma) with period for parseFloat
 			monthlySalary = parseFloat(salaryStr) || 0;
 			startOfEmployment = String(state.startOfEmployment ?? '');
 			birthday = String(state.birthday ?? '');
@@ -102,16 +110,11 @@ export default function BenefitBox({ labels: _labels, endMonthIndex, style }: Be
 			}
 		}
 
-		// If we have a special message, return early with just the message (no calculation needed)
-		if (showSpecialMessage) {
-			return { details: null, monthlySalary, showSpecialMessage };
-		}
-
 		const startDate = parseStart(startOfEmployment);
 		if (!startDate || exitDate <= startDate) return null;
 		const birthDate = parseBirthday(birthday);
 
-		// Get detailed calculation
+		// Get detailed calculation (even for special messages, we need it for the equal case)
 		const details = computeBenefitDetailsByDates({
 			employmentStartDate: startDate,
 			birthDate,
@@ -121,11 +124,39 @@ export default function BenefitBox({ labels: _labels, endMonthIndex, style }: Be
 			outplacementStartDate: roleLapseDate ?? undefined,
 		});
 
+		// If we have a special message, return with details (needed for equal case calculations)
+		if (showSpecialMessage) {
+			return { details, monthlySalary, showSpecialMessage };
+		}
+
 		return { details, monthlySalary, showSpecialMessage };
 	}, [endMonthIndex]);
 
 	const exitPackageEstimate = calculationDetails?.details?.totalPayout ?? null;
 	const showSpecialMessage = calculationDetails?.showSpecialMessage ?? null;
+	const calculationDetailsForEqual = calculationDetails?.details;
+	const [isModalOpen, setIsModalOpen] = useState(false);
+
+	// Calculate exit date for explanation
+	const exitDate = useMemo(() => {
+		const baseYear = 2025;
+		const baseMonth = 10; // Nov (0-based)
+		const m = baseMonth + endMonthIndex;
+		const y = baseYear + Math.floor(m / 12);
+		const mm = ((m % 12) + 12) % 12;
+		return new Date(y, mm, 1);
+	}, [endMonthIndex]);
+
+	// Build explanation text
+	const explanation = useMemo(() => {
+		if (!calculationDetails?.details) return null;
+		return buildExplanationText(
+			calculationDetails.details,
+			calculationDetails.monthlySalary,
+			exitDate,
+			showSpecialMessage
+		);
+	}, [calculationDetails, exitDate, showSpecialMessage]);
 
 	// Format text dynamically based on calculation results (reusing July logic for January)
 	const formattedText = useMemo(() => {
@@ -156,12 +187,14 @@ export default function BenefitBox({ labels: _labels, endMonthIndex, style }: Be
 
 		// If no remaining months, just show severance
 		if (remainingMonths <= 0) {
-			return 'Severance (per SBR formula)';
+			const cappedLabel = details.isSeveranceCapped ? ' (capped)' : '';
+			return `Severance (per SBR formula)${cappedLabel}`;
 		}
 
 		// Calculate multiplier: 0.5 × remaining months
 		const multiplier = (0.5 * remainingMonths).toFixed(1).replace('.', ',');
-		return `Severance + ${multiplier} x monthly salary (unused outplacement)`;
+		const cappedLabel = details.isSeveranceCapped ? ' (capped)' : '';
+		return `Severance${cappedLabel} + ${multiplier} x monthly salary (unused outplacement)`;
 	}, [calculationDetails, showSpecialMessage, _labels]);
 
 	return (
@@ -182,10 +215,9 @@ export default function BenefitBox({ labels: _labels, endMonthIndex, style }: Be
 				fontSize: 12,
 				lineHeight: 1.3,
 				textAlign: 'left',
-				pointerEvents: 'none',
+				pointerEvents: 'auto',
 				...style,
 			}}
-			aria-hidden="true"
 		>
 			{/* Top point/handle (vertical) */}
 			<div
@@ -203,31 +235,111 @@ export default function BenefitBox({ labels: _labels, endMonthIndex, style }: Be
 			/>
 
 			{showSpecialMessage === 'equal' ? (
-				<div
-					style={{
-						color: config.ui.colors.accent,
-						fontSize: 12,
-						fontWeight: 400,
-						textWrap: 'pretty',
-						whiteSpace: 'normal',
-						lineHeight: 1.5,
-					}}
-				>
-					The compensation for leaving on your role-lapse day isn't clearly defined. Please check with HR.
-				</div>
+				<>
+					<div
+						style={{
+							color: config.ui.colors.accent,
+							fontSize: 12,
+							fontWeight: 400,
+							textWrap: 'pretty',
+							whiteSpace: 'normal',
+							lineHeight: 1.5,
+						}}
+					>
+						{calculationDetailsForEqual ? (() => {
+							const severance = calculationDetailsForEqual.baseSeverance;
+							const isCapped = calculationDetailsForEqual.isSeveranceCapped;
+							const outplacementMonths = calculationDetailsForEqual.outplacementEntitlementMonths;
+							// monthlySalary in calculationDetails is yearly, convert to monthly then to baseSalary
+							// baseSalary = (yearlySalary / 12) / 1.08
+							const yearlySalary = calculationDetails?.monthlySalary ?? 0;
+							const baseSalary = (yearlySalary / 12) / 1.08;
+							const optOutPayment = Math.round(0.5 * baseSalary * outplacementMonths);
+							const declineTotal = severance + optOutPayment;
+							const acceptTotal = severance;
+							const cappedLabel = isCapped ? ' (capped)' : '';
+							
+							return (
+								<>
+									If you leave on the day your role lapses, it depends on your choice:
+									<br />
+									<br />
+									– Decline outplacement: Severance{cappedLabel} plus opt-out payment (50% of your total outplacement period) = <span style={{ whiteSpace: 'nowrap' }}>€{formatCurrency(declineTotal)}</span>
+									<br />
+									<br />
+									– Accept outplacement: Severance only = <span style={{ whiteSpace: 'nowrap' }}>€{formatCurrency(acceptTotal)}{cappedLabel}</span>
+								</>
+							);
+						})() : (
+							"The compensation for leaving on your role-lapse day isn't clearly defined. Please check with HR."
+						)}
+					</div>
+					{explanation && (
+						<button
+							onClick={(e) => {
+								e.stopPropagation();
+								setIsModalOpen(true);
+							}}
+							style={{
+								marginTop: 8,
+								background: 'none',
+								border: 'none',
+								padding: 0,
+								fontSize: 12,
+								fontWeight: 400,
+								color: config.ui.colors.accent,
+								cursor: 'pointer',
+								textDecoration: 'underline',
+								fontFamily: 'DM Sans, sans-serif',
+								textAlign: 'left',
+							}}
+							aria-expanded={isModalOpen}
+							aria-controls="explanation-modal"
+						>
+							Read more
+						</button>
+					)}
+				</>
 			) : showSpecialMessage === 'before' ? (
-				<div
-					style={{
-						color: config.ui.colors.accent,
-						fontSize: 12,
-						fontWeight: 400,
-						textWrap: 'pretty',
-						whiteSpace: 'normal',
-						lineHeight: 1.5,
-					}}
-				>
-					Leaving early affects your eligibility for a redundancy package, please check with HR.
-				</div>
+				<>
+					<div
+						style={{
+							color: config.ui.colors.accent,
+							fontSize: 12,
+							fontWeight: 400,
+							textWrap: 'pretty',
+							whiteSpace: 'normal',
+							lineHeight: 1.5,
+						}}
+					>
+						Leaving early affects your eligibility for a redundancy package, please check with HR.
+					</div>
+					{explanation && (
+						<button
+							onClick={(e) => {
+								e.stopPropagation();
+								setIsModalOpen(true);
+							}}
+							style={{
+								marginTop: 8,
+								background: 'none',
+								border: 'none',
+								padding: 0,
+								fontSize: 12,
+								fontWeight: 400,
+								color: config.ui.colors.accent,
+								cursor: 'pointer',
+								textDecoration: 'underline',
+								fontFamily: 'DM Sans, sans-serif',
+								textAlign: 'left',
+							}}
+							aria-expanded={isModalOpen}
+							aria-controls="explanation-modal"
+						>
+							Read more
+						</button>
+					)}
+				</>
 			) : formattedText ? (
 				<>
 					<div
@@ -255,10 +367,48 @@ export default function BenefitBox({ labels: _labels, endMonthIndex, style }: Be
 				}}
 			>
 					Exit package estimate:{' '}
-					{exitPackageEstimate !== null ? `€ ${exitPackageEstimate.toLocaleString()}` : '—'}
+					{exitPackageEstimate !== null ? (
+						<span style={{ whiteSpace: 'nowrap' }}>€ {formatCurrency(exitPackageEstimate)}</span>
+					) : '—'}
 				</div>
+				{/* Read more button */}
+				{explanation && (
+					<button
+						onClick={(e) => {
+							e.stopPropagation();
+							setIsModalOpen(true);
+						}}
+						style={{
+							marginTop: 8,
+							background: 'none',
+							border: 'none',
+							padding: 0,
+							fontSize: 12,
+							fontWeight: 400,
+							color: config.ui.colors.accent,
+							cursor: 'pointer',
+							textDecoration: 'underline',
+							fontFamily: 'DM Sans, sans-serif',
+							textAlign: 'left',
+						}}
+						aria-expanded={isModalOpen}
+						aria-controls="explanation-modal"
+					>
+						Read more
+					</button>
+				)}
 				</>
 			) : null}
+
+			{/* Modal */}
+			{explanation && (
+				<ReadMeModal
+					isOpen={isModalOpen}
+					onClose={() => setIsModalOpen(false)}
+				>
+					<CalculationExplanationContent explanation={explanation} />
+				</ReadMeModal>
+			)}
 		</div>
 	);
 }

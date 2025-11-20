@@ -23,6 +23,7 @@
 
 import { describe, it } from 'vitest';
 import { computeBenefitDetailsByDates } from './calc';
+import { formatCurrency } from './currency';
 
 type TestCase = {
 	name: string;
@@ -211,23 +212,23 @@ describe('SBR Calculator Validation Against Official Rules', () => {
 			report.push(`  Employment start: ${testCase.employmentStartDate.toISOString().split('T')[0]}`);
 			report.push(`  Role lapse: ${testCase.roleLapseDate.toISOString().split('T')[0]}`);
 			report.push(`  Exit: ${testCase.exitDate.toISOString().split('T')[0]}`);
-			report.push(`  Base yearly salary: €${testCase.baseYearlySalary.toLocaleString()}`);
-			report.push(`  Base monthly salary: €${baseMonthlySalary.toLocaleString()}`);
-			report.push(`  Yearly salary with holiday (8%): €${yearlySalaryWithHoliday.toLocaleString()}`);
+			report.push(`  Base yearly salary: €${formatCurrency(testCase.baseYearlySalary)}`);
+			report.push(`  Base monthly salary: €${formatCurrency(baseMonthlySalary)}`);
+			report.push(`  Yearly salary with holiday (8%): €${formatCurrency(yearlySalaryWithHoliday)}`);
 			report.push(``);
 			report.push(`Expected (SBR rules):`);
-			report.push(`  Severance: €${testCase.expectedSeverance.toLocaleString()}`);
-			report.push(`  Additional comp: €${testCase.expectedAdditionalComp.toLocaleString()} (0.5 × baseSalary × remainingMonths)`);
-			report.push(`  Total payout: €${testCase.expectedTotal.toLocaleString()}`);
+			report.push(`  Severance: €${formatCurrency(testCase.expectedSeverance)}`);
+			report.push(`  Additional comp: €${formatCurrency(testCase.expectedAdditionalComp)} (0.5 × baseSalary × remainingMonths)`);
+			report.push(`  Total payout: €${formatCurrency(testCase.expectedTotal)}`);
 			report.push(``);
 			report.push(`Actual (implementation):`);
 			report.push(`  Service: ${actual.rawServiceFullYears}y ${actual.rawServiceRemainderMonths}m (${actual.rawServiceMonths} months)`);
 			report.push(`  Weighted years A: ${actual.weightedYearsA.toFixed(2)}`);
-			report.push(`  Base severance: €${actual.baseSeverance.toLocaleString()}`);
+			report.push(`  Base severance: €${formatCurrency(actual.baseSeverance)}`);
 			report.push(`  Outplacement months: ${actual.outplacementEntitlementMonths}`);
 			report.push(`  Remaining months: ${actual.remainingFullOutplacementMonths}`);
-			report.push(`  Additional comp: €${actual.additionalComp.toLocaleString()}`);
-			report.push(`  Total payout: €${actual.totalPayout.toLocaleString()}`);
+			report.push(`  Additional comp: €${formatCurrency(actual.additionalComp)}`);
+			report.push(`  Total payout: €${formatCurrency(actual.totalPayout)}`);
 			
 			// Check for mismatches
 			const mismatches: string[] = [];
@@ -235,7 +236,7 @@ describe('SBR Calculator Validation Against Official Rules', () => {
 			// Severance comparison
 			// If implementation uses monthlySalary correctly, it should match expectedSeverance
 			if (Math.abs(actual.baseSeverance - testCase.expectedSeverance) > 1) {
-				mismatches.push(`Severance mismatch: expected €${testCase.expectedSeverance.toLocaleString()}, got €${actual.baseSeverance.toLocaleString()}`);
+				mismatches.push(`Severance mismatch: expected €${formatCurrency(testCase.expectedSeverance)}, got €${formatCurrency(actual.baseSeverance)}`);
 			}
 			
 			// Additional compensation comparison
@@ -244,12 +245,12 @@ describe('SBR Calculator Validation Against Official Rules', () => {
 			if (Math.abs(actual.additionalComp - testCase.expectedAdditionalComp) > 1) {
 				const diff = actual.additionalComp - testCase.expectedAdditionalComp;
 				const pctDiff = ((diff / testCase.expectedAdditionalComp) * 100).toFixed(1);
-				mismatches.push(`Additional compensation mismatch: expected €${testCase.expectedAdditionalComp.toLocaleString()} (0.5 × baseMonthlySalary), got €${actual.additionalComp.toLocaleString()} (${pctDiff}% difference)`);
+				mismatches.push(`Additional compensation mismatch: expected €${formatCurrency(testCase.expectedAdditionalComp)} (0.5 × baseMonthlySalary), got €${formatCurrency(actual.additionalComp)} (${pctDiff}% difference)`);
 			}
 			
 			// Total payout comparison
 			if (Math.abs(actual.totalPayout - testCase.expectedTotal) > 1) {
-				mismatches.push(`Total payout mismatch: expected €${testCase.expectedTotal.toLocaleString()}, got €${actual.totalPayout.toLocaleString()}`);
+				mismatches.push(`Total payout mismatch: expected €${formatCurrency(testCase.expectedTotal)}, got €${formatCurrency(actual.totalPayout)}`);
 			}
 			
 			if (mismatches.length > 0) {
